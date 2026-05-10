@@ -80,7 +80,8 @@ class JobScheduler:
                         available -= 1
 
             for job_id in next_ids:
-                self._execute_job(job_id)
+                thread = Thread(target=self._execute_job, args=(job_id,), daemon=True)
+                thread.start()
 
             time.sleep(0.5)
 

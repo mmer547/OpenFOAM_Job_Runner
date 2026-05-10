@@ -68,6 +68,7 @@ class SubmitDialog(QDialog):
 
         presets = QHBoxLayout()
         for label, cmds in [
+            ("./Allrun", ["./Allrun"]),
             ("blockMesh + simpleFoam", ["blockMesh", "simpleFoam"]),
             ("simpleFoam", ["simpleFoam"]),
             ("blockMesh", ["blockMesh"]),
