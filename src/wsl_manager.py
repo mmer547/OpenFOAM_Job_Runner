@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import threading
 from typing import Callable
 
 
@@ -86,6 +87,7 @@ def run_wsl_command(
     distro: str | None = None,
     on_stdout: Callable[[str], None] | None = None,
     on_stderr: Callable[[str], None] | None = None,
+    cancellation_event: threading.Event | None = None,
 ) -> tuple[int, str, str]:
     if distro is None:
         distro = detect_wsl_distro()
@@ -126,14 +128,22 @@ def run_wsl_command(
             if callback:
                 callback(line)
 
-    from threading import Thread
-
-    t_out = Thread(target=read_stream, args=(process.stdout, stdout_lines, on_stdout))
-    t_err = Thread(target=read_stream, args=(process.stderr, stderr_lines, on_stderr))
+    t_out = threading.Thread(target=read_stream, args=(process.stdout, stdout_lines, on_stdout), daemon=True)
+    t_err = threading.Thread(target=read_stream, args=(process.stderr, stderr_lines, on_stderr), daemon=True)
     t_out.start()
     t_err.start()
-    t_out.join()
-    t_err.join()
+
+    while process.poll() is None:
+        if cancellation_event is not None and cancellation_event.is_set():
+            process.terminate()
+            break
+        if cancellation_event is not None:
+            cancellation_event.wait(timeout=0.1)
+        else:
+            threading.Event().wait(timeout=0.1)
+
+    t_out.join(timeout=5)
+    t_err.join(timeout=5)
 
     process.wait()
     return process.returncode, "".join(stdout_lines), "".join(stderr_lines)

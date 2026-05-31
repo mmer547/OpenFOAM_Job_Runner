@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.models import JobStatus
+from src.models import Job, JobStatus
 from src.scheduler import JobScheduler
 from src.wsl_manager import clean_output
 from src.ui.job_list_widget import JobListWidget
@@ -73,6 +73,7 @@ class MainWindow(QMainWindow):
         file_menu.addAction("終了", self.close)
 
         job_menu = menubar.addMenu("ジョブ")
+        job_menu.addAction("キャンセル", self._cancel_selected_job)
         job_menu.addAction("削除", self._remove_selected_job)
 
         settings_menu = menubar.addMenu("設定")
@@ -91,6 +92,12 @@ class MainWindow(QMainWindow):
         remove_btn.setText("- 削除")
         remove_btn.clicked.connect(self._remove_selected_job)
         toolbar.addWidget(remove_btn)
+
+        self._cancel_btn = QToolButton()
+        self._cancel_btn.setText("✕ キャンセル")
+        self._cancel_btn.setEnabled(False)
+        self._cancel_btn.clicked.connect(self._cancel_selected_job)
+        toolbar.addWidget(self._cancel_btn)
 
         settings_btn = QToolButton()
         settings_btn.setText("設定")
@@ -148,6 +155,7 @@ class MainWindow(QMainWindow):
         if job:
             self._job_list.add_or_update_job(job)
             self._update_status_bar()
+            self._update_cancel_button(job)
 
     def _on_log_updated(self, job_id: str, line: str) -> None:
         selected_id = self._selected_job_id()
@@ -162,6 +170,9 @@ class MainWindow(QMainWindow):
         job = next((j for j in jobs if j.id == job_id), None)
         if job:
             self._job_list.add_or_update_job(job)
+        selected_id = self._selected_job_id()
+        if selected_id == job_id:
+            self._cancel_btn.setEnabled(False)
 
     def _on_selection_changed(self) -> None:
         self._log_view.clear()
@@ -171,11 +182,26 @@ class MainWindow(QMainWindow):
             job = next((j for j in jobs if j.id == job_id), None)
             if job and job.log:
                 self._log_view.setPlainText(clean_output(job.log))
+            self._update_cancel_button(job)
 
     def _refresh_elapsed(self) -> None:
         for job in self._scheduler.jobs:
             if job.status == JobStatus.RUNNING:
                 self._job_list.add_or_update_job(job)
+
+    def _cancel_selected_job(self) -> None:
+        job_id = self._selected_job_id()
+        if job_id is None:
+            return
+        if self._scheduler.cancel_job(job_id):
+            self._cancel_btn.setEnabled(False)
+            self._update_status_bar()
+
+    def _update_cancel_button(self, job: Job | None) -> None:
+        if job is None:
+            self._cancel_btn.setEnabled(False)
+            return
+        self._cancel_btn.setEnabled(job.status == JobStatus.RUNNING or job.status == JobStatus.WAITING)
 
     def _selected_job_id(self) -> str | None:
         row = self._job_list.currentRow()
@@ -189,7 +215,10 @@ class MainWindow(QMainWindow):
         total = len(jobs)
         waiting = sum(1 for j in jobs if j.status == JobStatus.WAITING)
         running = sum(1 for j in jobs if j.status == JobStatus.RUNNING)
-        completed = sum(1 for j in jobs if j.status in (JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED))
+        completed = sum(1 for j in jobs if j.status == JobStatus.COMPLETED)
+        failed = sum(1 for j in jobs if j.status == JobStatus.FAILED)
+        cancelled = sum(1 for j in jobs if j.status == JobStatus.CANCELLED)
         self._status_bar.showMessage(
-            f"合計: {total}  |  待機: {waiting}  |  実行中: {running}/{self._scheduler.max_concurrent}  |  完了/終了: {completed}"
+            f"合計: {total}  |  待機: {waiting}  |  実行中: {running}/{self._scheduler.max_concurrent}  "
+            f"|  完了: {completed}  |  失敗: {failed}  |  キャンセル: {cancelled}"
         )
