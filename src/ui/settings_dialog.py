@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QSlider,
     QSpinBox,
     QVBoxLayout,
@@ -13,11 +14,12 @@ from PySide6.QtWidgets import (
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, current_max: int, parent=None) -> None:
+    def __init__(self, current_max: int, bashrc_path: str | None = None, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("設定")
-        self.setMinimumWidth(350)
+        self.setMinimumWidth(400)
         self._max_concurrent = current_max
+        self._bashrc_path = bashrc_path
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -55,6 +57,26 @@ class SettingsDialog(QDialog):
         self._slider.valueChanged.connect(self._spin.setValue)
         self._spin.valueChanged.connect(self._slider.setValue)
 
+        layout.addSpacing(16)
+
+        bashrc_header = QLabel("OpenFOAM bashrc")
+        bashrc_header.setStyleSheet("font-weight: bold; font-size: 14px;")
+        layout.addWidget(bashrc_header)
+
+        bashrc_desc = QLabel(
+            "OpenFOAM環境を読み込むためのbashrcのパスを指定します。\n"
+            "空欄で自動検出、パス入力でカスタムパスを使用。"
+        )
+        bashrc_desc.setWordWrap(True)
+        layout.addWidget(bashrc_desc)
+
+        self._bashrc_edit = QLineEdit()
+        self._bashrc_edit.setPlaceholderText("空欄=自動検出 / WSL上のパスを指定 (例: /opt/openfoam2406/etc/bashrc)")
+        self._bashrc_edit.setText(self._bashrc_path or "")
+        layout.addWidget(self._bashrc_edit)
+
+        layout.addSpacing(16)
+
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
@@ -62,3 +84,7 @@ class SettingsDialog(QDialog):
 
     def get_max_concurrent(self) -> int:
         return self._spin.value()
+
+    def get_bashrc_path(self) -> str | None:
+        text = self._bashrc_edit.text().strip()
+        return text if text else None

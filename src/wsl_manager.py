@@ -88,10 +88,16 @@ def run_wsl_command(
     on_stdout: Callable[[str], None] | None = None,
     on_stderr: Callable[[str], None] | None = None,
     cancellation_event: threading.Event | None = None,
+    bashrc_path: str | None = None,
 ) -> tuple[int, str, str]:
     if distro is None:
         distro = detect_wsl_distro()
-    of_bashrc = _find_openfoam_bashrc()
+    if bashrc_path is None:
+        of_bashrc = _find_openfoam_bashrc()
+    elif bashrc_path == "":
+        of_bashrc = None
+    else:
+        of_bashrc = bashrc_path
     prefix = f"source {of_bashrc}; " if of_bashrc else ""
     full_cmd = [
         _sanitize("wsl.exe"),

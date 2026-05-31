@@ -144,9 +144,14 @@ class MainWindow(QMainWindow):
         self._update_status_bar()
 
     def _open_settings(self) -> None:
-        dialog = SettingsDialog(self._scheduler.max_concurrent, self)
+        dialog = SettingsDialog(
+            current_max=self._scheduler.max_concurrent,
+            bashrc_path=self._scheduler.bashrc_path,
+            parent=self,
+        )
         if dialog.exec() == SettingsDialog.Accepted:
             self._scheduler.max_concurrent = dialog.get_max_concurrent()
+            self._scheduler.bashrc_path = dialog.get_bashrc_path()
             self._update_status_bar()
 
     def _on_status_changed(self, job_id: str, status: JobStatus) -> None:

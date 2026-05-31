@@ -19,8 +19,9 @@ class SchedulerSignals(QObject):
 
 
 class JobScheduler:
-    def __init__(self, max_concurrent: int = 2) -> None:
+    def __init__(self, max_concurrent: int = 2, bashrc_path: str | None = None) -> None:
         self._max_concurrent = max_concurrent
+        self._bashrc_path = bashrc_path
         self._jobs: dict[str, Job] = {}
         self._queue: deque[str] = deque()
         self._lock = Lock()
@@ -37,6 +38,14 @@ class JobScheduler:
     def max_concurrent(self, value: int) -> None:
         with self._lock:
             self._max_concurrent = max(1, value)
+
+    @property
+    def bashrc_path(self) -> str | None:
+        return self._bashrc_path
+
+    @bashrc_path.setter
+    def bashrc_path(self, value: str | None) -> None:
+        self._bashrc_path = value
 
     @property
     def jobs(self) -> list[Job]:
@@ -140,6 +149,7 @@ class JobScheduler:
                 on_stdout=lambda line: self._on_job_output(job_id, line),
                 on_stderr=lambda line: self._on_job_output(job_id, line),
                 cancellation_event=cancel_event,
+                bashrc_path=self._bashrc_path,
             )
             combined_log.append(f"$ {cmd}\n")
             if stdout:
