@@ -19,6 +19,7 @@ from src.models import Job, JobStatus
 from src.scheduler import JobScheduler
 from src.wsl_manager import clean_output
 from src.ui.job_list_widget import JobListWidget
+from src.ui.residual_plot_dialog import ResidualPlotDialog
 from src.ui.settings_dialog import SettingsDialog
 from src.ui.submit_dialog import SubmitDialog
 
@@ -78,6 +79,9 @@ class MainWindow(QMainWindow):
 
         settings_menu = menubar.addMenu("設定")
         settings_menu.addAction("同時実行数...", self._open_settings)
+
+        tools_menu = menubar.addMenu("ツール")
+        tools_menu.addAction("残差グラフ...", self._open_residual_plot)
 
     def _setup_toolbar(self) -> None:
         toolbar = QToolBar("メインツールバー")
@@ -153,6 +157,10 @@ class MainWindow(QMainWindow):
             self._scheduler.max_concurrent = dialog.get_max_concurrent()
             self._scheduler.bashrc_path = dialog.get_bashrc_path()
             self._update_status_bar()
+
+    def _open_residual_plot(self) -> None:
+        dialog = ResidualPlotDialog(self)
+        dialog.exec()
 
     def _on_status_changed(self, job_id: str, status: JobStatus) -> None:
         jobs = self._scheduler.jobs
